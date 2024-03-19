@@ -10,10 +10,11 @@ import numpy as np
 import cv2
 
 from paddlelabel.io.image import getSize
+from paddlelabel.task.base import BaseSubtypeSelector
 from paddlelabel.task.instance_segmentation import InstanceSegmentation, draw_mask
 from paddlelabel.task.util import create_dir, listdir, image_extensions, copy
 from paddlelabel.task.util.color import hex_to_rgb
-from paddlelabel.api.model import Task
+from paddlelabel.api.model import Task, Project
 
 
 def parse_semantic_mask(annotation_path, labels, image_path=None):
@@ -98,7 +99,6 @@ class SemanticSegmentation(InstanceSegmentation):
         data_dir=None,
         filters={"exclude_prefix": ["."], "include_postfix": image_extensions},
     ):
-
         # 1. set params
         project = self.project
 
@@ -195,3 +195,20 @@ class SemanticSegmentation(InstanceSegmentation):
         )
         bg = project._get_other_settings().get("background_line", "background")
         self.export_labels(osp.join(export_dir, "labels.txt"), bg)
+
+
+class ProjectSubtypeSelector(BaseSubtypeSelector):
+    def __init__(self):
+        super(ProjectSubtypeSelector, self).__init__(
+            default_handler=SemanticSegmentation,
+            default_format="mask",
+        )
+
+        self.iq(
+            label="labelFormat",
+            required=True,
+            type="choice",
+            choices=[("mask", None), ("coco", None), ("eiseg", None)],
+            tips=None,
+            show_after=None,
+        )

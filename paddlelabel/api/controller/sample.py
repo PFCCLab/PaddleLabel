@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import os
 import os.path as osp
 from pathlib import Path
@@ -12,6 +13,17 @@ from paddlelabel.api.schema import ProjectSchema
 from paddlelabel.api.model import TaskCategory, Project
 from paddlelabel.task.util.file import copy, copy_content
 from paddlelabel import configs
+from paddlelabel.config import db
+
+# TODO: move this to be registered in sub category selector
+sample_folders = {
+    "classification": ["classification", "singleClass"],
+    "detection": ["detection", "coco"],
+    "semantic_segmentation": ["semanticSegmentation", "mask"],
+    "instance_segmentation": ["instanceSegmentation", "coco"],
+    "optical_character_recognition": ["opticalCharacterRecognition", "txt"],
+    "point": ["point", "labelme"],
+}
 
 
 def prep_samples():
@@ -146,10 +158,17 @@ def prep_samples():
         copy(src, dst, make_dir=True)
 
 
-def reset_samples():
+def reset_samples(remove_current_sample_projects: bool = True):
+    """_summary_
+
+    Args:
+        remove_current_sample_projects (bool, optional): Whether to remove sample projects in db. This will only be true when user clicks on reset sample button in frontend. Defaults to True.
+
+    - reset files under the sample folder
+    - delete all already created sample projects
+    - will backup the current sample folder if exists
     """
-    reset files under the sample folder, will backup the current sample folder if exists
-    """
+
     if configs.sample_dir.exists():
         from datetime import datetime
 
@@ -158,30 +177,18 @@ def reset_samples():
             / f"{str(datetime.now()).split('.')[0].replace(' ', '_').replace(':', '_')}-sample_bk"
         )
         configs.sample_dir.rename(back_up_path)
+    for project in Project._get(many=True):
+        if project._get_other_settings()["isSample"]:
+            db.session.delete(project)
+    db.session.commit()
+
+    # TODO: remove all current samples projects
+    # BUG: images on disk are missing
     prep_samples()
 
 
 def load_sample(sample_family="bear"):
-    prep_samples()
-
     task_category_id = connexion.request.json.get("task_category_id")
-
-    sample_folder = {
-        "classification": ["classification", "singleClass"],
-        "detection": ["detection", "voc"],
-        "semantic_segmentation": ["semanticSegmentation", "mask"],
-        "instance_segmentation": ["instanceSegmentation", "coco"],
-        "optical_character_recognition": ["opticalCharacterRecognition", "txt"],
-        "point": ["point", "labelme"],
-    }
-    label_formats = {
-        "classification": "single_class",
-        "detection": "voc",
-        "semantic_segmentation": "mask",
-        "instance_segmentation": "coco",
-        "optical_character_recognition": "txt",
-        "point": "labelme",
-    }
     sample_names = {
         "classification": "分类",
         "detection": "检测",
@@ -191,9 +198,7 @@ def load_sample(sample_family="bear"):
         "point": "点标注",
     }
     task_category = TaskCategory._get(task_category_id=task_category_id)
-    data_dir = osp.join(
-        osp.expanduser("~"), ".paddlelabel", "sample", sample_family, *sample_folder[task_category.name]
-    )
+    data_dir = osp.join(configs.home, "sample", sample_family, *sample_folders[task_category.name])
 
     name = f"{sample_names[task_category.name]} 样例项目"
     curr_project = Project._get(data_dir=data_dir)
@@ -209,16 +214,22 @@ def load_sample(sample_family="bear"):
         "description": f"PaddleLabel内置 {sample_names[task_category.name]} 样例项目",
         "task_category_id": str(task_category_id),
         "data_dir": data_dir,
-        "label_format": label_formats[task_category.name],
+        "other_settings": {"isSample": True},
     }
     project = ProjectSchema().load(project)
 
-    if task_category is None:
-        handler = paddlelabel.task.BaseTask(project)
-    else:
-        handler = eval(task_category.handler)(project, data_dir=data_dir)
+    selector = eval(f"paddlelabel.task.{task_category.name}.ProjectSubtypeSelector")()
+    handler = selector.get_handler(None, project)
+    importer = selector.get_importer(None, project)
 
-    handler.importers[label_formats[task_category.name]](data_dir=data_dir)
+    try:
+        importer(data_dir=data_dir)
+    except Exception as e:
+        # TODO: make sure half created project is deleted here on error
+        project = Project._get(project_id=handler.project.project_id)
+        db.session.delete(project)
+        db.session.commit()
+        raise e
 
     return {"project_id": handler.project.project_id}, 200
 

@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import os.path as osp
 import json
 from collections import defaultdict
 from pathlib import Path
 
 from paddlelabel.task.util import create_dir, listdir, image_extensions, match_by_base_name
-from paddlelabel.task.base import BaseTask
+from paddlelabel.task.base import BaseSubtypeSelector, BaseTask
 from paddlelabel.task.util import copy
 from paddlelabel.io.image import getSize
 from paddlelabel.api.model import Task, Annotation, Project
@@ -23,7 +22,6 @@ class OpticalCharacterRecognition(BaseTask):
         super().__init__(project, skip_label_import=True, data_dir=data_dir, is_export=is_export)
         self.importers = {"json": self.json_importer, "txt": self.txt_importer}
         self.exporters = {"json": self.json_exporter, "txt": self.txt_exporter}
-        self.default_exporter = self.txt_exporter
         # NOTE: ocr doesn't need a label but label is required field for annotation. thus use a dummy label
         self.dummy_label_name = "OCR Dummy Label"
 
@@ -65,7 +63,6 @@ class OpticalCharacterRecognition(BaseTask):
         )
 
         data_paths = set(Path(p) for p in listdir(data_dir, filters=filters))
-        # print(data_paths)
         for set_idx in label_file_paths:
             for label_file_path in label_file_paths[set_idx]:
                 if not label_file_path.exists():
@@ -95,13 +92,13 @@ class OpticalCharacterRecognition(BaseTask):
 
                     # FIXME: after frontend shift to upperleft origion, simply remove below part
                     labels_temp = labels_d[label_fname]
-                    for idx, label in enumerate(labels_temp):
-                        temp = label["result"].split("|")
-                        pidx = 0
-                        while temp[pidx] != "":
-                            temp[pidx] = f"{float(temp[pidx]) - ((width / 2) if pidx %2 ==0 else (height / 2)):.1f}"
-                            pidx += 1
-                        labels_temp[idx]["result"] = "|".join(temp)
+                    # for idx, label in enumerate(labels_temp):
+                    #     temp = label["result"].split("|")
+                    #     pidx = 0
+                    #     while temp[pidx] != "":
+                    #         temp[pidx] = f"{float(temp[pidx]) - ((width / 2) if pidx %2 ==0 else (height / 2)):.1f}"
+                    #         pidx += 1
+                    #     labels_temp[idx]["result"] = "|".join(temp)
 
                     self.add_task([{"path": str(data_path), "size": size}], [labels_temp], split=set_idx)
                     imported_data_path.add(data_path)
@@ -147,11 +144,11 @@ class OpticalCharacterRecognition(BaseTask):
                 ti = lambda v: int(float(v))
                 points = [list(map(ti, vs)) for vs in zip(r[:ridx:2], r[1:ridx:2])]
                 r = r[ridx + 1 :]
-                print(sizes[ann.data_id])
+                # print(sizes[ann.data_id])
                 height, width = sizes[ann.data_id]
-                for pidx in range(len(points)):
-                    points[pidx][0] = int(points[pidx][0] + width / 2)
-                    points[pidx][1] = int(points[pidx][1] + height / 2)
+                # for pidx in range(len(points)):
+                #     points[pidx][0] = int(points[pidx][0] + width / 2)
+                #     points[pidx][1] = int(points[pidx][1] + height / 2)
 
             split, name = data_info[ann.data_id]
             ann_dicts[split][name].append(
@@ -212,7 +209,7 @@ class OpticalCharacterRecognition(BaseTask):
         self.create_warning(data_dir)
         self.add_label(
             self.dummy_label_name,
-            comment="Dummy label for ocr project, added for compatability, don't delete.",
+            comment="Dummy label for ocr project, added for compatibility, don't delete.",
             commit=True,
         )
 
@@ -305,3 +302,20 @@ class OpticalCharacterRecognition(BaseTask):
         names = ["train.json", "val.json", "test.json"]
         for d, name in zip(ann_dicts, names):
             print(json.dumps(d), file=open(export_dir / name, "w"))
+
+
+class ProjectSubtypeSelector(BaseSubtypeSelector):
+    def __init__(self):
+        super(ProjectSubtypeSelector, self).__init__(
+            default_handler=OpticalCharacterRecognition,
+            default_format="txt",
+        )
+
+        self.iq(
+            label="labelFormat",
+            required=True,
+            type="choice",
+            choices=[("json", None), ("txt", None)],
+            tips=None,
+            show_after=None,
+        )

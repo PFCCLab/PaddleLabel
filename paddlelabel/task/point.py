@@ -6,7 +6,7 @@ import shutil
 
 from paddlelabel.task.util.labelme import get_matching, parse_ann, write_ann
 from paddlelabel.api import Task
-from paddlelabel.task.base import BaseTask
+from paddlelabel.task.base import BaseSubtypeSelector, BaseTask
 from paddlelabel.io.image import getSize
 
 
@@ -65,3 +65,20 @@ class Point(BaseTask):
 
         # 3. write split files
         self.export_split(export_dir, tasks, new_paths, with_labels=False, annotation_ext=".json")
+
+
+class ProjectSubtypeSelector(BaseSubtypeSelector):
+    def __init__(self):
+        super(ProjectSubtypeSelector, self).__init__(
+            default_handler=Point,
+            default_format="labelme",
+        )
+
+        self.iq(
+            label="labelFormat",
+            required=True,
+            type="choice",
+            choices=[("labelme", None)],
+            tips=None,
+            show_after=None,
+        )

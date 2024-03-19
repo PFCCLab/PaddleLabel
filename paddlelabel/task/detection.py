@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from pycocotoolse.coco import COCO
 
-from paddlelabel.api import Task, Annotation, Label
+from paddlelabel.api import Task, Annotation, Label, Project
 from paddlelabel.task.util import (
     create_dir,
     listdir,
@@ -18,8 +18,9 @@ from paddlelabel.task.util import (
     get_fname,
     break_path,
 )
-from paddlelabel.task.base import BaseTask
+from paddlelabel.task.base import BaseTask, BaseSubtypeSelector
 from paddlelabel.io.image import getSize
+
 
 # TODO: move to io
 def parse_voc_label(label_path):
@@ -70,10 +71,10 @@ def parse_voc_label(label_path):
         names = ["xmin", "ymin", "xmax", "ymax"]
         r = [data(bndbox.getElementsByTagName(n)) for n in names]
         r = [float(t) for t in r]
-        r[0] -= width / 2
-        r[1] -= height / 2
-        r[2] -= width / 2
-        r[3] -= height / 2
+        # r[0] -= width / 2
+        # r[1] -= height / 2
+        # r[2] -= width / 2
+        # r[3] -= height / 2
         r = [str(t) for t in r]
         ann["result"] = ",".join(r)
         ann["type"] = "rectangle"
@@ -89,10 +90,10 @@ def create_voc_label(filepath, width, height, annotations):
     height = int(float(height))
     for ann in annotations:
         r = [float(t) for t in ann.result.split(",")]
-        r[0] += width / 2
-        r[1] += height / 2
-        r[2] += width / 2
-        r[3] += height / 2
+        # r[0] += width / 2
+        # r[1] += height / 2
+        # r[2] += width / 2
+        # r[3] += height / 2
         r = [int(t) for t in r]
 
         object_labels += f"""
@@ -285,7 +286,7 @@ class Detection(BaseTask):
                     #     res[2] -= width / 2
                     #     res[3] -= height / 2
                     # else:
-                    res = [r - 0.5 for r in res]
+                    # res = [r - 0.5 for r in res]
                     res[0] *= width
                     res[1] *= height
                     res[2] *= width
@@ -424,10 +425,10 @@ class Detection(BaseTask):
                 height, width = (coco.imgs[ann["image_id"]]["height"], coco.imgs[ann["image_id"]]["width"])
                 res[2] += res[0]
                 res[3] += res[1]
-                res[0] -= width / 2
-                res[1] -= height / 2
-                res[2] -= width / 2
-                res[3] -= height / 2
+                # res[0] -= width / 2
+                # res[1] -= height / 2
+                # res[2] -= width / 2
+                # res[3] -= height / 2
 
                 res = [str(r) for r in res]
                 res = ",".join(res)
@@ -454,6 +455,7 @@ class Detection(BaseTask):
                 data_paths, others = _coco_importer(data_paths, label_file_path, split_idx)
                 coco_others[split_idx] = others
         other_settings = project._get_other_settings()
+        print(other_settings, type(other_settings))
         other_settings["coco_others"] = coco_others
         project.other_settings = json.dumps(other_settings)
 
@@ -501,18 +503,22 @@ class Detection(BaseTask):
         for ann in annotations:
             r = ann.result.split(",")
             r = [float(t) for t in r]
-            width, height = (
-                coco.imgs[ann.data_id]["width"],
-                coco.imgs[ann.data_id]["height"],
+            width, height = map(
+                int,
+                (
+                    coco.imgs[ann.data_id]["width"],
+                    coco.imgs[ann.data_id]["height"],
+                ),
             )
-            width = int(width)
-            height = int(height)
-            bb = [
-                r[0] + width / 2,
-                r[1] + height / 2,
-                r[2] + width / 2,
-                r[3] + height / 2,
-            ]
+            # width = int(width)
+            # height = int(height)
+            # bb = [
+            #     r[0] + width / 2,
+            #     r[1] + height / 2,
+            #     r[2] + width / 2,
+            #     r[3] + height / 2,
+            # ]
+            bb = r[0:3]
             bb[0], bb[2] = (bb[0], bb[2]) if bb[0] < bb[2] else (bb[2], bb[0])
             bb[1], bb[3] = (bb[1], bb[3]) if bb[1] < bb[3] else (bb[3], bb[1])
             bb[2] -= bb[0]
@@ -656,3 +662,20 @@ class Detection(BaseTask):
             export_paths.append([export_path])
 
         self.export_split(export_dir, tasks, export_paths, with_labels=False, annotation_ext=".xml")
+
+
+class ProjectSubtypeSelector(BaseSubtypeSelector):
+    def __init__(self):
+        super(ProjectSubtypeSelector, self).__init__(
+            default_handler=Detection,
+            default_format="coco",
+        )
+
+        self.iq(
+            label="labelFormat",
+            required=True,
+            type="choice",
+            choices=[("coco", None), ("voc", None), ("yolo", None)],
+            tips=None,
+            show_after=None,
+        )

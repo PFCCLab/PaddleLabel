@@ -5,7 +5,11 @@ import logging
 import os.path as osp  # TODO: remove
 from collections import deque
 from pathlib import Path
+from functools import partial
 
+from pydantic import validate_arguments
+
+# from paddlelabel.api.controller import project
 from paddlelabel.api import Annotation, Data, Label, Project, Task
 from paddlelabel.config import db
 from paddlelabel.task.util import create_dir, image_extensions, listdir
@@ -17,6 +21,7 @@ Base for import/export and other task specific operations.
 """
 
 logger = logging.getLogger("paddlelabel")
+
 
 # TODO: change data_dir to pathlib.path
 class BaseTask:
@@ -215,6 +220,19 @@ class BaseTask:
         self.task_cache = []
         db.session.commit()
 
+    def get_label(self, label_id: int | None = None, id: int | None = None, name: str | None = None):
+        if label_id is not None:
+            label_id = int(label_id)
+            for label in self.project.labels:
+                if label.label_id == label_id:
+                    return label
+            return None
+        if name is not None:
+            for label in self.project.labels:
+                if label.name == name:
+                    return label
+            return None
+
     # TODO: change following three to get_label_by_xx
     def label_id2name(self, label_id: int | float):
         """
@@ -320,7 +338,7 @@ class BaseTask:
         color: str | None = None,
         super_category_id: int | None = None,
         comment: str | None = None,
-        commit=False,
+        commit=True,
     ):
         """
         Add one label to current project
@@ -381,7 +399,9 @@ class BaseTask:
         self.label_max_id = max(current_ids)
         return label
 
-    def import_labels(self, delimiter: str = " ", ignore_first: bool = False):
+    def import_labels(
+        self, delimiter: str = " ", ignore_first: bool = False
+    ):  # TODO: a list of label file names, try to find the first
         # 1. set params
         label_names_path = None
         project = self.project
@@ -485,13 +505,47 @@ class BaseTask:
 
         return id_mapping
 
+    def parse_lists(
+        self,
+        list_file_names: list[tuple[str, int]] = [
+            ("train_list.txt", 0),
+            ("val_list.txt", 1),
+            ("test_list.txt", 2),
+        ],
+        delimiter: str = " ",
+        mode: str = "matching",
+    ) -> dict[Path, dict]:
+        data_dir = Path(self.project.data_dir)
+        res = {}
+
+        for list_file_name, split_idx in list_file_names:
+            list_path: Path = data_dir / list_file_name
+            if not list_path.exists():
+                continue
+            lines = list_path.read_text(encoding="utf-8").split("\n")
+            for line_idx, line in enumerate(lines):
+                if len(line) == 0:
+                    continue
+                parts = line.split(delimiter)
+                data_path: Path = data_dir / parts[0]
+                if not data_path.exists():
+                    logger.error(
+                        f"Image path {str(data_path)} specified at line {line_idx} of list file {list_path.name} isn't found on disk, skipping this record."
+                    )
+                    continue
+                if mode == "labels":
+                    res[Path(parts[0])] = {
+                        "labels": list(map(lambda label_id: self.get_label(label_id=int(label_id) + 1), parts[1:])),
+                        "split_idx": split_idx,
+                    }
+        return res
+
     def default_importer(
         self,
         data_dir: Path | None = None,
         filters={"exclude_prefix": ["."], "include_postfix": image_extensions},
         with_size: bool = True,  # TODO: after result format is changed, default to false
     ):
-
         data_dir = self.project.data_dir if data_dir is None else data_dir
         assert data_dir is not None
 
@@ -558,7 +612,8 @@ class BaseTask:
         catgs = deque()
 
         for catg in labels:
-            catgs.append(catg)
+            if self.get_label(name=catg["name"]) is not None:
+                catgs.append(catg)
 
         tried_names = []  # guard against invalid dependency graph
         for _ in range(len(catgs) * 2):
@@ -598,3 +653,63 @@ class BaseTask:
                         color=color,
                     )
             db.session.commit()
+
+
+class BaseSubtypeSelector:
+    __persist__: dict[str, str] = {}
+
+    def __init__(self, default_handler=None, default_format: str | None = None):
+        self.default_handler = default_handler
+        self.default_format = default_format
+        self.import_questions = []
+        self.export_questions = []
+        self.iq = partial(self.add_q, self.import_questions)
+        self.eq = partial(self.add_q, self.export_questions)
+
+    @validate_arguments
+    def add_q(
+        self,
+        question_set: list,
+        label: str,  # can have duplicates. Maybe same question, different choices
+        required: bool,
+        type: str,  # "choice", "input"
+        choices: list[tuple[str, str | None]] | None,  # [(choice, tips)]
+        tips: str | None,
+        show_after: list[tuple[str, str]] | None,
+    ):
+        if label == "labelFormat":
+            assert choices is not None, f"labelFormat choices can't be None"
+            choices.insert(0, ("noLabel", None))
+
+        question_set.append(
+            {
+                "label": label,
+                "required": required,
+                "type": type,
+                "choices": choices,
+                "tips": tips,
+                "show_after": [] if show_after is None else show_after,
+                "allow_edit": label in self.__persist__.keys(),
+            }
+        )
+
+    def get_handler(self, answers: dict | None, project: Project):
+        assert self.default_handler is not None, f"self.default_handler is None"
+        return self.default_handler(project=project, is_export=False)
+
+    def get_importer(self, answers: dict | None, project: Project):
+        if len(self.__persist__) != 0:
+            oss = project.other_settings.strip()
+            if answers is None:
+                oss = oss[:-1] + "".join(f', "{k}": "{v}"' for k, v in self.__persist__.items()) + "}"
+            else:
+                oss = oss[:-1] + "".join(f', "{k}": "{answers[k]}"' for k in self.__persist__.keys()) + "}"
+            project.other_settings = oss
+        print("project.other_settings", project.other_settings)
+        handler = self.get_handler(answers, project)
+        if answers is None:
+            return handler.importers[self.default_format]
+        label_format = answers["labelFormat"]
+        if label_format == "noLabel":
+            return handler.default_importer
+        return handler.importers[label_format]

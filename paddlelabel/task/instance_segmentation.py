@@ -13,13 +13,13 @@ from pycocotoolse.coco import COCO
 from pathlib import Path
 
 from paddlelabel.io.image import getSize
-from paddlelabel.task.util import create_dir, listdir, image_extensions, match_by_base_name
-from paddlelabel.task.base import BaseTask
+from paddlelabel.task.util import create_dir, listdir, image_extensions, match_by_base_name, copy
+from paddlelabel.task.base import BaseTask, BaseSubtypeSelector
 from paddlelabel.task.util.color import hex_to_rgb
-from paddlelabel.task.util import copy
 from paddlelabel.api.model import Task, Label, Annotation
 from paddlelabel.api.util import abort
 from paddlelabel.api.rpc.seg import polygon2points
+from paddlelabel.api import Project
 
 log = logging.getLogger("paddlelabel")
 
@@ -316,9 +316,9 @@ class InstanceSegmentation(BaseTask):
                     coco.imgs[ann["image_id"]].get("width", None),
                     coco.imgs[ann["image_id"]].get("height", None),
                 )
-                for idx in range(0, len(res), 2):
-                    res[idx] -= width / 2
-                    res[idx + 1] -= height / 2
+                # for idx in range(0, len(res), 2):
+                #     res[idx] -= width / 2
+                #     res[idx + 1] -= height / 2
 
                 res = [str(r) for r in res]
                 res = ",".join(res)
@@ -467,3 +467,20 @@ class InstanceSegmentation(BaseTask):
                 self.add_task([{"path": str(data_path), "size": size}], [anns])
                 json_paths.remove(json_path)
         self.commit()
+
+
+class ProjectSubtypeSelector(BaseSubtypeSelector):
+    def __init__(self):
+        super(ProjectSubtypeSelector, self).__init__(
+            default_handler=InstanceSegmentation,
+            default_format="coco",
+        )
+
+        self.iq(
+            label="labelFormat",
+            required=True,
+            type="choice",
+            choices=[("mask", None), ("coco", None), ("eiseg", None)],
+            tips=None,
+            show_after=None,
+        )

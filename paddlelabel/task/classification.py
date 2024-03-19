@@ -1,31 +1,49 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from functools import partial
 
 from pathlib import Path
 import os.path as osp  # TODO: remove this dep
 import shutil
 
-from paddlelabel.api import Task
+from paddlelabel.api.model import Task, Project
 from paddlelabel.task.util import create_dir, listdir, copy, image_extensions
-from paddlelabel.task.base import BaseTask
+from paddlelabel.task.base import BaseTask, BaseSubtypeSelector
 
 
-class Classification(BaseTask):
-    def __init__(self, project, data_dir=None, is_export=False):
-        super(Classification, self).__init__(project, data_dir=data_dir, is_export=is_export)
+class SingleClass(BaseTask):
+    def __init__(self, project, is_export=False):
+        super(SingleClass, self).__init__(project, data_dir=project.data_dir, is_export=is_export)
         self.importers = {
-            "single_class": self.single_class_importer,
-            "multi_class": self.multi_class_importer,
+            "singleClassFolder": self.folder_importer,
+            "singleClassList": self.list_importer,
         }
         self.exporters = {
-            "single_class": self.single_class_exporter,
-            "multi_class": self.multi_class_exporter,
+            "singleClassFolder": self.folder_exporter,
+            "singleClassList": self.folder_exporter,
         }
-        # TODO: remove this
-        self.default_exporter = self.single_class_exporter
 
-    def single_class_importer(
+    def list_importer(
+        self,
+        data_dir: Path,
+        filters={"exclude_prefix": ["."], "include_postfix": image_extensions},
+    ):
+        # 1. set params
+        data_dir = Path(self.project.data_dir if data_dir is None else data_dir)
+        self.create_warning(data_dir)
+
+        # 2. import all datas
+        data_paths = [Path(p) for p in listdir(data_dir, filters)]
+        list_infos = self.parse_lists(mode="labels")
+        for data_path in data_paths:
+            if data_path in list_infos:
+                print(list_infos[data_path])
+                self.add_task([{"path": str(data_path)}], [[{"label_name": list_infos[data_path]["labels"][0].name}]])
+            else:
+                self.add_task([{"path": str(data_path)}])
+
+        self.commit()
+
+    def folder_importer(
         self,
         data_dir: Path | None = None,
         filters={"exclude_prefix": ["."], "include_postfix": image_extensions},
@@ -42,7 +60,7 @@ class Classification(BaseTask):
 
         self.commit()
 
-    def single_class_exporter(self, export_dir):
+    def folder_exporter(self, export_dir):
         project = self.project
         create_dir(export_dir)
         create_dir(osp.join(export_dir, "no_annotation"))
@@ -75,9 +93,16 @@ class Classification(BaseTask):
         # 4. write split files
         self.export_split(export_dir, tasks, new_paths)
 
-    def multi_class_importer(
+
+class MultiClass(BaseTask):
+    def __init__(self, project, is_export=False):
+        super(MultiClass, self).__init__(project, data_dir=project.data_dir, is_export=is_export)
+        self.importers = {"multiClassList": self.list_importer}
+        self.exporters = {"multiClassList": self.list_exporter}
+
+    def list_importer(
         self,
-        data_dir=None,
+        data_dir: Path,
         filters={"exclude_prefix": ["."], "include_postfix": image_extensions},
     ):
         # 1. set params
@@ -121,7 +146,7 @@ class Classification(BaseTask):
 
         self.commit()
 
-    def multi_class_exporter(self, export_dir):
+    def list_exporter(self, export_dir):
         project = self.project
 
         # 1. all images
@@ -157,38 +182,44 @@ class Classification(BaseTask):
         self.export_split(osp.join(export_dir), tasks, new_paths)
 
 
-class ProjectSubtypeSelector:
+class ProjectSubtypeSelector(BaseSubtypeSelector):
+    __persist__: dict[str, str] = {"clasSubCatg": "singleClass"}
+
     def __init__(self):
-        self.import_questions = []
-        self.export_questions = []
-        iq = partial(self.add_q, self.import_questions)
-        eq = partial(self.add_q, self.export_questions)
-        iq(
-            "clasSubCags",
-            True,
-            "choice",
-            ["singleClass", "multiClass"],
-            None,
-            None,
+        super(ProjectSubtypeSelector, self).__init__(
+            default_handler=SingleClass,
+            default_format="singleClassFolder",
         )
 
-    def add_q(
-        self,
-        question_set: list,
-        question: str,
-        required: bool,
-        type: str,
-        choices: list[str],
-        tips: str | None,
-        show_after: tuple[str, str] | None,
-    ):
-        question_set.append(
-            {
-                "question": question,
-                "required": required,
-                "type": type,
-                "choices": choices,
-                "tips": tips,
-                # "show_after"
-            }
+        self.iq(
+            label="clasSubCatg",
+            required=True,
+            type="choice",
+            choices=[("singleClass", None), ("multiClass", None)],
+            tips=None,
+            show_after=None,
         )
+        self.iq(
+            label="labelFormat",
+            required=True,
+            type="choice",
+            choices=[("singleClassFolder", None), ("singleClassList", None)],
+            tips=None,
+            show_after=[("clasSubCatg", "singleClass")],
+        )
+        self.iq(
+            label="labelFormat",
+            required=True,
+            type="choice",
+            choices=[("multiClassList", None)],
+            tips=None,
+            show_after=[("clasSubCatg", "multiClass")],
+        )
+
+    def get_handler(self, answers: dict | None, project: Project):
+        if answers is None:
+            return SingleClass(project=project, is_export=False)
+        clas_sub_catg = answers["clasSubCatg"]
+        if clas_sub_catg == "singleClass":
+            return SingleClass(project=project, is_export=False)
+        return MultiClass(project=project, is_export=False)
