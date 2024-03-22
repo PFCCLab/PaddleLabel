@@ -119,7 +119,6 @@ paddlelabel
     logger.info(f"Version: {__version__}")
     logger.info(f"PaddleLabel is running at http://localhost:{configs.port}")
 
-    # connexion_app.run(host=configs.host, port=configs.port, debug=configs.debug)
     connexion_app.app.debug = configs.debug
     connexion_app.run(host=configs.host, port=configs.port)
 
