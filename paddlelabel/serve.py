@@ -13,6 +13,7 @@ from paddlelabel.util import Resolver, backend_error
 from paddlelabel.config import connexion_app
 from paddlelabel.api.controller.setting import init_site_settings
 from paddlelabel.api.model import AlembicVersion
+from connexion.options import SwaggerUIOptions
 
 HERE = Path(__file__).parent.absolute()
 logger = logging.getLogger("paddlelabel")
@@ -90,9 +91,9 @@ connexion_app.add_api(
     # request with undefined param returns error, dont enforce body
     strict_validation=True,
     pythonic_params=True,
-    # options={"swagger_ui": configs.debug, "serve_spec": False},
-    options={"swagger_ui": configs.debug, "serve_spec": configs.debug},
+    swagger_ui_options=SwaggerUIOptions(serve_spec=configs.debug, swagger_ui=configs.debug),
 )
+
 connexion_app.add_error_handler(Exception, backend_error)
 
 # TODO: use middleware, instead of flask-cors
