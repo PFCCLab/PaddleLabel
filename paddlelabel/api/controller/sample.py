@@ -6,7 +6,7 @@ from pathlib import Path
 
 import connexion
 import flask  # TODO: remove this
-
+import asyncio
 import paddlelabel  # for eval later
 from paddlelabel import configs
 from paddlelabel.api.schema import ProjectSchema
@@ -188,7 +188,7 @@ def reset_samples(remove_current_sample_projects: bool = True):
 
 
 def load_sample(sample_family="bear"):
-    task_category_id = connexion.request.json.get("task_category_id")
+    task_category_id = asyncio.run(connexion.request.json()).get("task_category_id")
     sample_names = {
         "classification": "分类",
         "detection": "检测",
