@@ -7,6 +7,7 @@ import connexion
 from flask import abort  # TODO: change to connextion abort
 import sqlalchemy
 import marshmallow
+import asyncio
 
 from paddlelabel.config import db
 from paddlelabel.api.util import parse_order_by
@@ -50,12 +51,13 @@ def crud(Model, Schema, triggers=[]):
     ):
         schema = Schema()
         try:
-            if isinstance(connexion.request.json, list):
-                new_items = schema.load(connexion.request.json, many=True)
+            request_json = asyncio.run(connexion.request.json())
+            if isinstance(request_json, list):
+                new_items = schema.load(request_json, many=True)
                 if pre_add_batch is not None:
                     new_items = pre_add_batch(new_items, db.session)
             else:
-                new_items = [schema.load(connexion.request.json)]
+                new_items = [schema.load(request_json)]
         except marshmallow.exceptions.ValidationError as e:
             for field, msgs in e.messages.items():
                 if "Missing data for required field." in msgs:

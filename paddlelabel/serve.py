@@ -14,6 +14,8 @@ from paddlelabel.config import connexion_app
 from paddlelabel.api.controller.setting import init_site_settings
 from paddlelabel.api.model import AlembicVersion
 from connexion.options import SwaggerUIOptions
+from connexion.middleware import MiddlewarePosition
+from starlette.middleware.cors import CORSMiddleware
 
 HERE = Path(__file__).parent.absolute()
 logger = logging.getLogger("paddlelabel")
@@ -96,5 +98,12 @@ connexion_app.add_api(
 
 connexion_app.add_error_handler(Exception, backend_error)
 
-# TODO: use middleware, instead of flask-cors
-CORS(connexion_app.app)
+connexion_app.add_middleware(
+    CORSMiddleware,
+    position=MiddlewarePosition.BEFORE_EXCEPTION,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
