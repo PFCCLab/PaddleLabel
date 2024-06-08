@@ -53,6 +53,12 @@ def crud(Model, Schema, triggers=[]):
 
         try:
             request_json = asyncio.run(connexion.request.json())
+
+            # TODO(Liyulingyue): 暂时通过os的方式做中转，避免重复调用connexion.request.json()
+            import os
+            import json
+            os.environ["CACHE_OF_CONNEXION"] = json.dumps(request_json)
+
             if isinstance(request_json, list):
                 new_items = schema.load(request_json, many=True)
                 if pre_add_batch is not None:

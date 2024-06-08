@@ -42,11 +42,14 @@ def import_dataset(project, data_dir=None, label_format=None):
 
     selector = eval(f"paddlelabel.task.{task_category.name}.ProjectSubtypeSelector")()
 
-    print(f"Lyly debug: {'接下来会始终loading，无法执行下去'}")
-    print(f"Lyly debug: {connexion.request.json()}")
-    all_options = asyncio.run(connexion.request.json()).get("all_options", {})
-    print(f"Lyly debug: {all_options}")
-    answers = connexion.request.json.get("all_options", {})
+    # TODO(Liyulingyue): 暂时通过os的方式做中转，避免重复调用connexion.request.json()
+    import os
+    import json
+    request_json = json.loads(os.environ["CACHE_OF_CONNEXION"])
+
+    print(f"Lyly debug: {request_json}")
+    answers = request_json.get("all_options", {})
+    print(f"Lyly debug: {answers}")
     importer = selector.get_importer(answers, project=project)
     importer(data_dir)
     persists = selector.__persist__

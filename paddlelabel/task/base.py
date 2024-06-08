@@ -709,7 +709,7 @@ class BaseSubtypeSelector:
         handler = self.get_handler(answers, project)
         if answers is None:
             return handler.importers[self.default_format]
-        label_format = answers["labelFormat"]
+        label_format = answers.get("labelFormat", "noLabel")
         if label_format == "noLabel":
             return handler.default_importer
         return handler.importers[label_format]
