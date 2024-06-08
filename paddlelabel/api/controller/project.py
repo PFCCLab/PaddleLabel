@@ -33,7 +33,7 @@ from paddlelabel.task import *
 logger = logging.getLogger("paddlelabel")
 
 
-def import_dataset(project, data_dir=None, label_format=None):
+def import_dataset(project, data_dir=None, label_format=None, request_json={}, ):
     data_dir = project.data_dir if data_dir is None else data_dir
     logger.info(f"importing dataset from {data_dir}")
     task_category = TaskCategory._get(task_category_id=project.task_category_id)
@@ -41,13 +41,6 @@ def import_dataset(project, data_dir=None, label_format=None):
     assert task_category is not None, f"invalid task category id {project.task_category_id}"
 
     selector = eval(f"paddlelabel.task.{task_category.name}.ProjectSubtypeSelector")()
-
-    # TODO(Liyulingyue): 暂时通过os的方式做中转，避免重复调用connexion.request.json()
-    import os
-    import json
-    request_json = json.loads(os.environ["CACHE_OF_CONNEXION"])
-
-    print(f"Lyly debug: {request_json}")
     answers = request_json.get("all_options", {})
     print(f"Lyly debug: {answers}")
     importer = selector.get_importer(answers, project=project)
@@ -126,11 +119,15 @@ def pre_add(new_project, se):
     return new_project
 
 
-def post_add(new_project, se):
+def post_add(new_project, se, request_json={}):
     """run task import after project creation"""
 
     try:
-        import_dataset(new_project)
+        # # TODO(Liyulingyue): 暂时通过os的方式做中转，避免重复调用connexion.request.json()
+        # import os
+        # import json
+        # request_json = json.loads(os.environ["CACHE_OF_CONNEXION"])
+        import_dataset(new_project, request_json=request_json)
     except Exception as e:
         project = Project.query.filter(Project.project_id == new_project.project_id).one()
         db.session.delete(project)
