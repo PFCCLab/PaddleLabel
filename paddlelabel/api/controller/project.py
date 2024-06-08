@@ -33,7 +33,7 @@ from paddlelabel.task import *
 logger = logging.getLogger("paddlelabel")
 
 
-def import_dataset(project, data_dir=None, label_format=None, request_json={}, ):
+def import_dataset(project, data_dir=None, label_format=None, request_json={}):
     data_dir = project.data_dir if data_dir is None else data_dir
     logger.info(f"importing dataset from {data_dir}")
     task_category = TaskCategory._get(task_category_id=project.task_category_id)
@@ -227,7 +227,8 @@ def to_easydata(project_id):
 
 def split_dataset(project_id):
     Project._exists(project_id)
-    split = connexion.request.json
+    request_json = asyncio.run(connexion.request.json())
+    split = request_json
     if list(split.keys()) != ["train", "val", "test"]:
         abort(
             f"Got {split}",

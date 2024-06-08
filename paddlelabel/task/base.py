@@ -698,8 +698,10 @@ class BaseSubtypeSelector:
         return self.default_handler(project=project, is_export=False)
 
     def get_importer(self, answers: dict | None, project: Project):
+        print(f"lyly debug: in get_importer {project}")
         if len(self.__persist__) != 0:
-            oss = project.other_settings.strip()
+            # TODO(Liyulingyue)： 更改了oss的获取，需要查一下这个参数怎么配置
+            oss = "" if project.other_settings is None else project.other_settings.strip()
             if answers is None:
                 oss = oss[:-1] + "".join(f', "{k}": "{v}"' for k, v in self.__persist__.items()) + "}"
             else:

@@ -83,6 +83,7 @@ def set_all_by_data(data_id):
     Args:
         data_id (int): data_id
     """
+    print(f"lyly debug: in set_all_by_data")
 
     # 1. ensure data exists
     _, data = Data._exists(data_id)
@@ -93,7 +94,9 @@ def set_all_by_data(data_id):
     print(f"lyly debug:{request_json}")
     anns = request_json
     for idx in range(len(anns)):
-        del anns[idx]["label"]
+        # TODO(Liyulingyue): 为了OCR暂时这样修改
+        if "label" in anns[idx]:
+            del anns[idx]["label"]
         anns[idx] = schema.load(anns[idx])
     curr_anns = Annotation._get(data_id=data.data_id, many=True)  # query before the first edit
     curr_ann_ids = set([ann.annotation_id for ann in curr_anns])
