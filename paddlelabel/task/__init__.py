@@ -10,4 +10,8 @@
 from pathlib import Path
 
 files = Path(__file__).parent.glob("*.py")
+
 __all__ = list(map(lambda p: p.name.split(".")[0], files))
+
+from .detection import Detection # TODO(Liyulingyue): 引入Detection，后续需要跟__all__合并
+

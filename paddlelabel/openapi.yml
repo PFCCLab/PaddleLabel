@@ -471,7 +471,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/request_id'
         - schema:
-            type: boolean
+            type: string # TODO: 原来是boolean，现在是string，解析后无法获取到此字段
           in: header
           name: remove_duplicate_by_name
           description: 是否根据标签名去重，标签名如果存在不会创建
@@ -950,7 +950,7 @@ paths:
           in: path
           description: Id of the annotation to delete
           schema:
-            type: integer
+            type: string # TODO: 原来是interger，现在是string，可能解析后会出现错误，或者此字段无法获取到
           required: true
       responses:
         '200':
@@ -968,7 +968,7 @@ paths:
           in: path
           description: Id of the annotation to edit
           schema:
-            type: integer
+            type: string # TODO: 原来是interger，现在是string，可能解析后会出现错误，或者此字段无法获取到
           required: true
       requestBody:
         required: true

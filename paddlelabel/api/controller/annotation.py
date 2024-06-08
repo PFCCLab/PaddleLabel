@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import connexion
+import asyncio
 
 from .base import crud
 from ..model import Annotation, Task, Project, Data
@@ -88,7 +89,9 @@ def set_all_by_data(data_id):
 
     # 2. load and parse all new anns
     schema = AnnotationSchema()
-    anns = connexion.request.json
+    request_json = asyncio.run(connexion.request.json())
+    print(f"lyly debug:{request_json}")
+    anns = request_json
     for idx in range(len(anns)):
         del anns[idx]["label"]
         anns[idx] = schema.load(anns[idx])

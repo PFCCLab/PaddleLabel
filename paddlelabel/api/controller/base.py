@@ -50,9 +50,11 @@ def crud(Model, Schema, triggers=[]):
         post_add=tgs["post_add"],
     ):
         schema = Schema()
+        print(f"lyly debug:{'in base post'}")
 
         try:
             request_json = asyncio.run(connexion.request.json())
+            print(f"lyly debug:{request_json}")
 
             if isinstance(request_json, list):
                 new_items = schema.load(request_json, many=True)
@@ -111,7 +113,10 @@ def crud(Model, Schema, triggers=[]):
                 f"No {Model.__tablename__} with {id_name}: {id_val} .",
             )
         # 2. check request key exist and can be edited
-        body = connexion.request.json
+        request_json = asyncio.run(connexion.request.json())
+        body = request_json
+        print(f"lyly debug: in base put")
+        print(f"lyly debug: {body}")
 
         for k in list(body.keys()):
             if k in Model._immutables:
