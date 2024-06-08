@@ -50,6 +50,7 @@ def crud(Model, Schema, triggers=[]):
         post_add=tgs["post_add"],
     ):
         schema = Schema()
+
         try:
             request_json = asyncio.run(connexion.request.json())
             if isinstance(request_json, list):

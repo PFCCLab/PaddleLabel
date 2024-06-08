@@ -11,6 +11,7 @@ import logging
 import base64
 
 import connexion
+import asyncio
 
 from paddlelabel.config import db
 from paddlelabel.api.model import Project, Task, TaskCategory, Annotation, Label, TaskCategory
@@ -40,6 +41,11 @@ def import_dataset(project, data_dir=None, label_format=None):
     assert task_category is not None, f"invalid task category id {project.task_category_id}"
 
     selector = eval(f"paddlelabel.task.{task_category.name}.ProjectSubtypeSelector")()
+
+    print(f"Lyly debug: {'接下来会始终loading，无法执行下去'}")
+    print(f"Lyly debug: {connexion.request.json()}")
+    all_options = asyncio.run(connexion.request.json()).get("all_options", {})
+    print(f"Lyly debug: {all_options}")
     answers = connexion.request.json.get("all_options", {})
     importer = selector.get_importer(answers, project=project)
     importer(data_dir)
