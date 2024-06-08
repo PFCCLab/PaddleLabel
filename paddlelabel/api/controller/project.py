@@ -123,10 +123,6 @@ def post_add(new_project, se, request_json={}):
     """run task import after project creation"""
 
     try:
-        # # TODO(Liyulingyue): 暂时通过os的方式做中转，避免重复调用connexion.request.json()
-        # import os
-        # import json
-        # request_json = json.loads(os.environ["CACHE_OF_CONNEXION"])
         import_dataset(new_project, request_json=request_json)
     except Exception as e:
         project = Project.query.filter(Project.project_id == new_project.project_id).one()
