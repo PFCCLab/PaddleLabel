@@ -92,7 +92,7 @@ def crud(Model, Schema, triggers=[]):
             if post_add is not None:
                 with db.session.no_autoflush:
                     post_add(new_item, db.session, request_json=request_json)
-        if isinstance(connexion.request.json, list):
+        if isinstance(request_json, list):
             return schema.dump(new_items, many=True), 201
         else:
             return schema.dump(new_item), 201
