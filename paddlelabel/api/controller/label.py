@@ -63,9 +63,7 @@ def unique_within_project(project_id, new_labels=[], col_names=["id", "name"]):
 
 
 def pre_add_batch(new_labels, se):
-    # TODO: 因为在base.py中调用了connexion，这里再次调用只能获得空，实际上duplicate应当是True
-    remove_duplicate_flag = connexion.request.headers.get("remove_duplicate", "False")
-    print(f"lyly debug: {remove_duplicate_flag}, {type(remove_duplicate_flag)}")
+    remove_duplicate_flag = connexion.request.headers.get("remove_duplicate_by_name", "False")
     if remove_duplicate_flag in [True, "True", "true", "TRUE"]:
         if len(new_labels) == 0:
             return []

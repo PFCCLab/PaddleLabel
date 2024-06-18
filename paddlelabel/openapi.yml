@@ -471,7 +471,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/request_id'
         - schema:
-            type: string # TODO: 原来是boolean，现在是string，解析后无法获取到此字段
+            type: string
           in: header
           name: remove_duplicate_by_name
           description: 是否根据标签名去重，标签名如果存在不会创建
