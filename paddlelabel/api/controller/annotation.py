@@ -83,15 +83,12 @@ def set_all_by_data(data_id):
     Args:
         data_id (int): data_id
     """
-    print(f"lyly debug: in set_all_by_data")
-
     # 1. ensure data exists
     _, data = Data._exists(data_id)
 
     # 2. load and parse all new anns
     schema = AnnotationSchema()
     request_json = asyncio.run(connexion.request.json())
-    print(f"lyly debug:{request_json}")
     anns = request_json
     for idx in range(len(anns)):
         # TODO(Liyulingyue): 为了OCR暂时这样修改

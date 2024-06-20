@@ -42,7 +42,6 @@ def import_dataset(project, data_dir=None, label_format=None, request_json={}):
 
     selector = eval(f"paddlelabel.task.{task_category.name}.ProjectSubtypeSelector")()
     answers = request_json.get("all_options", {})
-    print(f"Lyly debug: {answers}")
     importer = selector.get_importer(answers, project=project)
     importer(data_dir)
     persists = selector.__persist__
@@ -140,18 +139,14 @@ def post_add(new_project, se, request_json={}):
 
 
 def export_dataset(project_id):
-    print(f"lyly debug: in export_dataset")
     # 1. ensure project exists
     _, project = Project._exists(project_id)
 
     # 2. get handler and exporter
     task_category = TaskCategory._get(task_category_id=project.task_category_id)
-    print(f"lyly debug: {task_category}")
-    print(f"lyly debug: {project}")
     handler = eval(task_category.handler)(project, is_export=True)
 
     request_json = asyncio.run(connexion.request.json())
-    print(f"lyly debug: {request_json}")
     export_format = request_json.get("export_format", None)
     if export_format is None:
         export_format = project.label_format
