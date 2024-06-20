@@ -950,7 +950,7 @@ paths:
           in: path
           description: Id of the annotation to delete
           schema:
-            type: string # TODO: 原来是interger，现在是string，可能解析后会出现错误，或者此字段无法获取到
+            type: string
           required: true
       responses:
         '200':
@@ -968,7 +968,7 @@ paths:
           in: path
           description: Id of the annotation to edit
           schema:
-            type: string # TODO: 原来是interger，现在是string，可能解析后会出现错误，或者此字段无法获取到
+            type: string
           required: true
       requestBody:
         required: true

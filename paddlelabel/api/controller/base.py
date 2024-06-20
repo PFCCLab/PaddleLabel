@@ -106,6 +106,7 @@ def crud(Model, Schema, triggers=[]):
     ):
         # 1. check item exist
         id_name, id_val = list(kwargs.items())[0]
+        id_val = int(id_val)
         item = Model.query.filter(getattr(Model, id_name) == id_val).one_or_none()
         if item is None:
             abort(
@@ -115,8 +116,6 @@ def crud(Model, Schema, triggers=[]):
         # 2. check request key exist and can be edited
         request_json = asyncio.run(connexion.request.json())
         body = request_json
-        print(f"lyly debug: in base put")
-        print(f"lyly debug: {body}")
 
         for k in list(body.keys()):
             if k in Model._immutables:
@@ -147,6 +146,7 @@ def crud(Model, Schema, triggers=[]):
         **kwargs,
     ):
         id_name, id_val = list(kwargs.items())[0]
+        id_val = int(id_val)
         item = Model.query.filter(getattr(Model, id_name) == id_val).one_or_none()
 
         if item is None:
