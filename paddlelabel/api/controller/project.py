@@ -60,7 +60,9 @@ def import_additional_data(project_id):
         project_id (int): the project to import to
     """
     # 1. get project
-    req = connexion.request.json
+    request_json = asyncio.run(connexion.request.json())
+
+    req = request_json
     _, project = Project._exists(project_id)
 
     # 2. get current project data file names
