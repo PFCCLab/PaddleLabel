@@ -7,9 +7,8 @@ cache_dict = {}
 
 
 def create_cache():
-    print(f"lyly debug: in create_cache, the follows are not valided")
     request_json = asyncio.run(connexion.request.json())
-    print(f"lyly debug: {request_json}")
+
     content = request_json["content"]
     global cache_dict
     cache_id = str(time.time())

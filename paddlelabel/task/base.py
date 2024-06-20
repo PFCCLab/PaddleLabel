@@ -698,7 +698,6 @@ class BaseSubtypeSelector:
         return self.default_handler(project=project, is_export=False)
 
     def get_importer(self, answers: dict | None, project: Project):
-        print(f"lyly debug: in get_importer {project}")
         if len(self.__persist__) != 0:
             # TODO(Liyulingyue)： 更改了oss的获取，需要查一下这个参数怎么配置
             oss = "" if project.other_settings is None else project.other_settings.strip()
