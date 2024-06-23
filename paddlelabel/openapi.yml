@@ -471,7 +471,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/request_id'
         - schema:
-            type: boolean
+            type: string
           in: header
           name: remove_duplicate_by_name
           description: 是否根据标签名去重，标签名如果存在不会创建
@@ -950,7 +950,7 @@ paths:
           in: path
           description: Id of the annotation to delete
           schema:
-            type: integer
+            type: string
           required: true
       responses:
         '200':
@@ -968,7 +968,7 @@ paths:
           in: path
           description: Id of the annotation to edit
           schema:
-            type: integer
+            type: string
           required: true
       requestBody:
         required: true

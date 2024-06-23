@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import connexion
 import time
+import asyncio
 
 cache_dict = {}
 
 
 def create_cache():
-    content = connexion.request.json["content"]
+    request_json = asyncio.run(connexion.request.json())
+
+    content = request_json["content"]
     global cache_dict
     cache_id = str(time.time())
     cache_dict[cache_id] = content

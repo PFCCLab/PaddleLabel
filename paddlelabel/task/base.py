@@ -699,7 +699,8 @@ class BaseSubtypeSelector:
 
     def get_importer(self, answers: dict | None, project: Project):
         if len(self.__persist__) != 0:
-            oss = project.other_settings.strip()
+            # TODO(Liyulingyue)： 更改了oss的获取，需要查一下这个参数怎么配置
+            oss = "" if project.other_settings is None else project.other_settings.strip()
             if answers is None:
                 oss = oss[:-1] + "".join(f', "{k}": "{v}"' for k, v in self.__persist__.items()) + "}"
             else:
@@ -709,7 +710,7 @@ class BaseSubtypeSelector:
         handler = self.get_handler(answers, project)
         if answers is None:
             return handler.importers[self.default_format]
-        label_format = answers["labelFormat"]
+        label_format = answers.get("labelFormat", "noLabel")
         if label_format == "noLabel":
             return handler.default_importer
         return handler.importers[label_format]

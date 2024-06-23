@@ -63,7 +63,8 @@ def unique_within_project(project_id, new_labels=[], col_names=["id", "name"]):
 
 
 def pre_add_batch(new_labels, se):
-    if connexion.request.headers.get("remove_duplicate_by_name", False):
+    remove_duplicate_flag = connexion.request.headers.get("remove_duplicate_by_name", "False")
+    if remove_duplicate_flag in [True, "True", "true", "TRUE"]:
         if len(new_labels) == 0:
             return []
         curr_labels = Label._get(project_id=new_labels[0].project_id, many=True)

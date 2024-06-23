@@ -11,6 +11,7 @@ import logging
 import base64
 
 import connexion
+import asyncio
 
 from paddlelabel.config import db
 from paddlelabel.api.model import Project, Task, TaskCategory, Annotation, Label, TaskCategory
@@ -32,7 +33,7 @@ from paddlelabel.task import *
 logger = logging.getLogger("paddlelabel")
 
 
-def import_dataset(project, data_dir=None, label_format=None):
+def import_dataset(project, data_dir=None, label_format=None, request_json={}):
     data_dir = project.data_dir if data_dir is None else data_dir
     logger.info(f"importing dataset from {data_dir}")
     task_category = TaskCategory._get(task_category_id=project.task_category_id)
@@ -40,7 +41,7 @@ def import_dataset(project, data_dir=None, label_format=None):
     assert task_category is not None, f"invalid task category id {project.task_category_id}"
 
     selector = eval(f"paddlelabel.task.{task_category.name}.ProjectSubtypeSelector")()
-    answers = connexion.request.json.get("all_options", {})
+    answers = request_json.get("all_options", {})
     importer = selector.get_importer(answers, project=project)
     importer(data_dir)
     persists = selector.__persist__
@@ -59,7 +60,9 @@ def import_additional_data(project_id):
         project_id (int): the project to import to
     """
     # 1. get project
-    req = connexion.request.json
+    request_json = asyncio.run(connexion.request.json())
+
+    req = request_json
     _, project = Project._exists(project_id)
 
     # 2. get current project data file names
@@ -117,11 +120,11 @@ def pre_add(new_project, se):
     return new_project
 
 
-def post_add(new_project, se):
+def post_add(new_project, se, request_json={}):
     """run task import after project creation"""
 
     try:
-        import_dataset(new_project)
+        import_dataset(new_project, request_json=request_json)
     except Exception as e:
         project = Project.query.filter(Project.project_id == new_project.project_id).one()
         db.session.delete(project)
@@ -144,7 +147,9 @@ def export_dataset(project_id):
     # 2. get handler and exporter
     task_category = TaskCategory._get(task_category_id=project.task_category_id)
     handler = eval(task_category.handler)(project, is_export=True)
-    export_format = connexion.request.json.get("export_format", None)
+
+    request_json = asyncio.run(connexion.request.json())
+    export_format = request_json.get("export_format", None)
     if export_format is None:
         export_format = project.label_format
     if export_format is None or len(export_format) == 0:
@@ -153,7 +158,7 @@ def export_dataset(project_id):
         exporter = handler.exporters[export_format]
 
     # 3. get export path
-    params = connexion.request.json
+    params = request_json
     params["export_dir"] = expand_home(params["export_dir"])
     if not Path(params["export_dir"]).is_absolute():
         abort(f"Only support absolute paths, got {params['export_dir']}", 500)
@@ -219,7 +224,8 @@ def to_easydata(project_id):
 
 def split_dataset(project_id):
     Project._exists(project_id)
-    split = connexion.request.json
+    request_json = asyncio.run(connexion.request.json())
+    split = request_json
     if list(split.keys()) != ["train", "val", "test"]:
         abort(
             f"Got {split}",

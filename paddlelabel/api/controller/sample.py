@@ -188,7 +188,9 @@ def reset_samples(remove_current_sample_projects: bool = True):
 
 
 def load_sample(sample_family="bear"):
-    task_category_id = asyncio.run(connexion.request.json()).get("task_category_id")
+    request_json = asyncio.run(connexion.request.json())
+
+    task_category_id = request_json.get("task_category_id")
     sample_names = {
         "classification": "分类",
         "detection": "检测",

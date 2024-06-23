@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import connexion
+import asyncio
 
 from .base import crud
 from ..model import Annotation, Task, Project, Data
@@ -82,15 +83,17 @@ def set_all_by_data(data_id):
     Args:
         data_id (int): data_id
     """
-
     # 1. ensure data exists
     _, data = Data._exists(data_id)
 
     # 2. load and parse all new anns
     schema = AnnotationSchema()
-    anns = connexion.request.json
+    request_json = asyncio.run(connexion.request.json())
+    anns = request_json
     for idx in range(len(anns)):
-        del anns[idx]["label"]
+        # TODO(Liyulingyue): 为了OCR暂时这样修改
+        if "label" in anns[idx]:
+            del anns[idx]["label"]
         anns[idx] = schema.load(anns[idx])
     curr_anns = Annotation._get(data_id=data.data_id, many=True)  # query before the first edit
     curr_ann_ids = set([ann.annotation_id for ann in curr_anns])

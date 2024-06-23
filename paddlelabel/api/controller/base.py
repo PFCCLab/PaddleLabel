@@ -50,8 +50,10 @@ def crud(Model, Schema, triggers=[]):
         post_add=tgs["post_add"],
     ):
         schema = Schema()
+
         try:
             request_json = asyncio.run(connexion.request.json())
+
             if isinstance(request_json, list):
                 new_items = schema.load(request_json, many=True)
                 if pre_add_batch is not None:
@@ -87,8 +89,8 @@ def crud(Model, Schema, triggers=[]):
 
             if post_add is not None:
                 with db.session.no_autoflush:
-                    post_add(new_item, db.session)
-        if isinstance(connexion.request.json, list):
+                    post_add(new_item, db.session, request_json=request_json)
+        if isinstance(request_json, list):
             return schema.dump(new_items, many=True), 201
         else:
             return schema.dump(new_item), 201
@@ -102,6 +104,7 @@ def crud(Model, Schema, triggers=[]):
     ):
         # 1. check item exist
         id_name, id_val = list(kwargs.items())[0]
+        id_val = int(id_val)
         item = Model.query.filter(getattr(Model, id_name) == id_val).one_or_none()
         if item is None:
             abort(
@@ -109,7 +112,8 @@ def crud(Model, Schema, triggers=[]):
                 f"No {Model.__tablename__} with {id_name}: {id_val} .",
             )
         # 2. check request key exist and can be edited
-        body = connexion.request.json
+        request_json = asyncio.run(connexion.request.json())
+        body = request_json
 
         for k in list(body.keys()):
             if k in Model._immutables:
@@ -140,6 +144,7 @@ def crud(Model, Schema, triggers=[]):
         **kwargs,
     ):
         id_name, id_val = list(kwargs.items())[0]
+        id_val = int(id_val)
         item = Model.query.filter(getattr(Model, id_name) == id_val).one_or_none()
 
         if item is None:
